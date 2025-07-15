@@ -1,4 +1,18 @@
 # ramdisk: create or destroy a macOS APFS RAM disk
+
+declare -A rd_tags=(
+  TotalSize size
+  CapacityInUse 'in use'
+  APFSContainerFree free
+  DeviceNode device
+)
+
+# extract and format plist values
+plX () {
+  plutil -extract $1 raw - | nfmt |
+    awk '{print "  → '"${rd_tags[$1]}"': " $1}'  >&3
+}
+
 ramdisk() {
   local cmd size blocks device backing mp="/Volumes/RAMDisk"
 
@@ -71,15 +85,11 @@ ramdisk() {
     fi
 
     echo "→ RAMDisk mounted at $mp"
-    diskutil info -plist /Volumes/RAMDisk | tee \
-      >(plutil -extract TotalSize raw - | nfmt |
-        awk '{print "  → size: " $1}') \
-      >(plutil -extract CapacityInUse raw - | nfmt |
-        awk '{print "  → in use: " $1}') \
-      >(plutil -extract APFSContainerFree raw - | nfmt |
-        awk '{print "  → free: " $1}') \
-      >(plutil -extract DeviceNode raw - |
-        awk '{print "  → device: " $1}') > /dev/null
+    (diskutil info -plist /Volumes/RAMDisk | tee \
+      >(plX TotalSize) \
+      >(plX APFSContainerFree) \
+      >(plX CapacityInUse) \
+      >(plX DeviceNode) > /dev/null) 3>&1 | cat
     return 0
   fi
 
