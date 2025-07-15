@@ -2,14 +2,9 @@
 ramdisk() {
   local cmd size blocks device backing mp="/Volumes/RAMDisk"
 
-  # validate command
-  if [[ $1 != create && $1 != destroy ]]; then
-    echo "Usage: ramdisk create <size_in_GiB> | destroy" >&2
-    return 1
-  fi
   cmd=$1
 
-  # Create 
+  # Create
   if [[ $cmd == create ]]; then
     # require exactly two args
     if (( $# != 2 )); then
@@ -61,7 +56,30 @@ ramdisk() {
     return 0
   fi
 
-  # Destroy 
+  # Status
+  if [[ $cmd == status ]]; then
+    # no extra args
+    if (( $# != 1 )); then
+      echo "Usage: ramdisk status" >&2
+      return 1
+    fi
+
+    # check if mounted
+    if [[ ! -d $mp ]]; then
+      echo "Error: no RAMDisk found at $mp. use \`ramdisk create\` for new volume." >&2
+      return 1
+    fi
+
+    echo "→ RAMDisk mounted at $mp"
+    diskutil info -plist /Volumes/RAMDisk | tee \
+      >(plutil -extract TotalSize raw - |
+        awk '{print "  → size: " $1/1e9 " GiB"}') \
+      >(plutil -extract DeviceNode raw - |
+        awk '{print "  → device: " $1}') > /dev/null
+    return 0
+  fi
+
+  # Destroy
   if [[ $cmd == destroy ]]; then
     # no extra args
     if (( $# != 1 )); then
@@ -100,6 +118,7 @@ ramdisk() {
     echo "✔ RAMDisk at $mp destroyed"
     return 0
   fi
+
+  echo "Usage: ramdisk create <size_in_GiB> | status | destroy" >&2
+  return 1
 }
-
-
