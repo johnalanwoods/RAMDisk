@@ -72,8 +72,12 @@ ramdisk() {
 
     echo "→ RAMDisk mounted at $mp"
     diskutil info -plist /Volumes/RAMDisk | tee \
-      >(plutil -extract TotalSize raw - |
-        awk '{print "  → size: " $1/1e9 " GiB"}') \
+      >(plutil -extract TotalSize raw - | nfmt |
+        awk '{print "  → size: " $1}') \
+      >(plutil -extract CapacityInUse raw - | nfmt |
+        awk '{print "  → in use: " $1}') \
+      >(plutil -extract APFSContainerFree raw - | nfmt |
+        awk '{print "  → free: " $1}') \
       >(plutil -extract DeviceNode raw - |
         awk '{print "  → device: " $1}') > /dev/null
     return 0
@@ -121,4 +125,16 @@ ramdisk() {
 
   echo "Usage: ramdisk create <size_in_GiB> | status | destroy" >&2
   return 1
+}
+
+nfmt () {
+  awk '
+      function human(x) {
+          if (x<1000) {return x} else {x/=1024}
+          s="kMGTEPZY";
+          while (x>=1000 && length(s)>1)
+              {x/=1024; s=substr(s,2)}
+          return int(x+0.5) substr(s,1,1) "iB"
+      }
+      {sub(/^[0-9]+/, human($1)); print}'
 }
