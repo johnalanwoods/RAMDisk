@@ -1,15 +1,24 @@
 # ramdisk: create or destroy a macOS APFS RAM disk
+
+declare -A rd_tags=(
+  TotalSize size
+  CapacityInUse 'in use'
+  APFSContainerFree free
+  DeviceNode device
+)
+
+# extract and format plist values
+plX () {
+  plutil -extract $1 raw - | nfmt |
+    awk '{print "  → '"${rd_tags[$1]}"': " $1}'  >&3
+}
+
 ramdisk() {
   local cmd size blocks device backing mp="/Volumes/RAMDisk"
 
-  # validate command
-  if [[ $1 != create && $1 != destroy ]]; then
-    echo "Usage: ramdisk create <size_in_GiB> | destroy" >&2
-    return 1
-  fi
   cmd=$1
 
-  # Create 
+  # Create
   if [[ $cmd == create ]]; then
     # require exactly two args
     if (( $# != 2 )); then
@@ -61,7 +70,30 @@ ramdisk() {
     return 0
   fi
 
-  # Destroy 
+  # Status
+  if [[ $cmd == status ]]; then
+    # no extra args
+    if (( $# != 1 )); then
+      echo "Usage: ramdisk status" >&2
+      return 1
+    fi
+
+    # check if mounted
+    if [[ ! -d $mp ]]; then
+      echo "Error: no RAMDisk found at $mp. use \`ramdisk create\` for new volume." >&2
+      return 1
+    fi
+
+    echo "→ RAMDisk mounted at $mp"
+    (diskutil info -plist /Volumes/RAMDisk | tee \
+      >(plX TotalSize) \
+      >(plX APFSContainerFree) \
+      >(plX CapacityInUse) \
+      >(plX DeviceNode) > /dev/null) 3>&1 | cat
+    return 0
+  fi
+
+  # Destroy
   if [[ $cmd == destroy ]]; then
     # no extra args
     if (( $# != 1 )); then
@@ -100,6 +132,19 @@ ramdisk() {
     echo "✔ RAMDisk at $mp destroyed"
     return 0
   fi
+
+  echo "Usage: ramdisk create <size_in_GiB> | status | destroy" >&2
+  return 1
 }
 
-
+nfmt () {
+  awk '
+      function human(x) {
+          if (x<1000) {return x} else {x/=1024}
+          s="kMGTEPZY";
+          while (x>=1000 && length(s)>1)
+              {x/=1024; s=substr(s,2)}
+          return int(x+0.5) substr(s,1,1) "iB"
+      }
+      {sub(/^[0-9]+/, human($1)); print}'
+}
