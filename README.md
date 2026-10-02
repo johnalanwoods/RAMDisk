@@ -3,17 +3,17 @@
 ### A minimal ZSH function to create and destroy APFS-formatted RAM disks on macOS.
 
 ## Features
-💾 Create APFS RAM disks up to 128 GiB
+💾 Create APFS RAM disks up to system's total installed RAM 
 
 ✅ Safe teardown - unmounts & detaches cleanly
 
-👮🏼‍♂️ Input validation - enforces valid size and context 
+👮🏼‍♂️ Input validation - enforces valid size and context, supports macOS 27 Golden Gate, no longer uses `hdiutil` 
 
 ⚡ Fast - great for builds, testing, and temp data
 
 
 ## Usage
-Copy the `ramdisk` function from `/src`, paste into `.zshrc` or equivalent
+Copy the `ramdisk` functions from `/src`, paste into `.zshrc` or equivalent
 
 ```
 ramdisk create <size_in_GiB>
@@ -33,4 +33,4 @@ Mount path is always: `/Volumes/RAMDisk`
 
 Format is always: `APFS`
 
-Created with: `hdiutil` and `diskutil`
+Utilises: `diskutil` only, supports macOS 27 Golden Gate (on which `hdiutil` is deprecated)
